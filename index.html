@@ -1,400 +1,614 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Venus-Mercury Orbital Perturbation Simulation</title>
+    <title>Mercury Orbital Precession - Realistic Simulation</title>
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background: #000;
             color: #fff;
             font-family: Arial, sans-serif;
+            overflow: hidden;
         }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
+        #canvas {
+            display: block;
+            background: radial-gradient(ellipse at center, #0a0a1a 0%, #000 100%);
         }
-        canvas {
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
             border: 1px solid #333;
-            background: #000;
+            width: 220px;
         }
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-        }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        label {
-            font-size: 12px;
-            color: #ccc;
-        }
-        input[type="range"] {
-            width: 120px;
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            width: 280px;
         }
         button {
-            padding: 10px 20px;
-            background: #333;
-            color: #fff;
+            background: #1a73e8;
+            color: white;
             border: none;
+            padding: 8px 15px;
             border-radius: 5px;
             cursor: pointer;
+            margin: 5px 0;
+            width: 100%;
         }
         button:hover {
-            background: #555;
+            background: #2b7de9;
         }
-        .info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            max-width: 800px;
-            font-size: 12px;
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .info-line {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        h3 {
+            margin: 0 0 10px 0;
+            color: #4a9eff;
         }
         .warning {
-            color: #ff6b6b;
-            font-weight: bold;
+            font-size: 11px;
+            color: #ff9800;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🌍 Venus-Mercury Orbital Perturbation Simulation ⚡</h1>
+    <canvas id="canvas"></canvas>
+    
+    <div id="controls">
+        <h3>Controls</h3>
+        <button id="playPause">Pause</button>
+        <button id="reset">Reset</button>
         
-        <canvas id="canvas" width="800" height="600"></canvas>
+        <label for="speed">Time Scale: <span id="speedValue">1000</span> days/sec</label>
+        <input type="range" id="speed" min="100" max="100000" value="1000" step="1000">
         
-        <div class="controls">
-            <div class="control-group">
-                <label>Time Speed (days/frame): <span id="timeValue">5</span></label>
-                <input type="range" id="timeSpeed" min="0.1" max="30" step="0.5" value="5">
-            </div>
-            <div class="control-group">
-                <label>Venus Mass Multiplier: <span id="venusValue">1.0</span>x</label>
-                <input type="range" id="venusMass" min="0.5" max="5" step="0.1" value="1">
-            </div>
-            <div class="control-group">
-                <label>Mercury Eccentricity: <span id="eccValue">0.20</span></label>
-                <input type="range" id="mercuryEcc" min="0.01" max="0.5" step="0.01" value="0.2">
-            </div>
-            <div class="control-group">
-                <label><input type="checkbox" id="showGravity"> Show Gravity Lines</label>
-                <label><input type="checkbox" id="showTrails" checked> Show Orbit Trails</label>
-            </div>
-            <button id="resetBtn">Reset Simulation</button>
-        </div>
+        <label for="zoom">Zoom: <span id="zoomValue">2.0</span>x</label>
+        <input type="range" id="zoom" min="0.5" max="4" value="2.0" step="0.1">
         
-        <div class="info">
-            <div>🕐 Simulation Time: <span id="simTime">0</span> days</div>
-            <div>🌍 Mercury Distance: <span id="mercuryDist">0</span> AU</div>
-            <div>🌟 Venus Distance: <span id="venusDist">0</span> AU</div>
-            <div>📏 V-M Distance: <span id="vmDist">0</span> AU</div>
-            <div>⚡ Mercury Speed: <span id="mercurySpeed">0</span> km/s</div>
-            <div>📊 Mercury Eccentricity: <span id="mercuryEccReal">0</span></div>
-            <div id="perturbAlert" class="warning" style="display: none;">⚠️ STRONG PERTURBATION!</div>
-        </div>
+        <label for="precessionScale">Precession Force: <span id="precessionValue">1000</span>x</label>
+        <input type="range" id="precessionScale" min="1" max="10000" value="1000">
+        
+        <label>
+            <input type="checkbox" id="showOrbits" checked> Show Orbit Trails
+        </label>
+        <label>
+            <input type="checkbox" id="showReference" checked> Show Reference Orbit
+        </label>
+        
+        <p class="warning">Note: Artificial force applied to make precession visible. Real precession is ~277"/century.</p>
+    </div>
+    
+    <div id="info">
+        <h3>Physical Data</h3>
+        <div class="info-line">Simulation Time: <span id="time">0</span> years</div>
+        <div class="info-line">Mercury Orbits: <span id="mercuryOrbits">0</span></div>
+        <div class="info-line">Venus Orbits: <span id="venusOrbits">0</span></div>
+        <div class="info-line">Mercury Period: <span id="mercuryPeriod">--</span> days</div>
+        <div class="info-line">Venus Period: <span id="venusPeriod">--</span> days</div>
+        <hr style="border-color: #333; margin: 10px 0;">
+        <h4 style="color: #4a9eff; margin: 5px 0;">Precession Data</h4>
+        <div class="info-line">Precession Angle: <span id="precessionAngle">0</span>°</div>
+        <div class="info-line">Total Orbit Shift: <span id="orbitShift">0</span> km</div>
     </div>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Physical constants
-        const G = 6.674e-11;
-        const AU = 149597870700; // meters
-        const sunMass = 1.989e30;
-        const venusMassReal = 4.867e24;
-        const mercuryMassReal = 3.301e23;
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         
-        // Scaling for display
-        const scale = 400; // pixels per AU
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
+        // Physical Constants
+        const G = 6.67430e-11; // m^3 kg^-1 s^-2
+        const AU = 1.495978707e11; // meters
+        const YEAR = 365.25636; // days
+        const DAY = 86400; // seconds
         
-        // UI elements
-        const timeSpeedSlider = document.getElementById('timeSpeed');
-        const venusMassSlider = document.getElementById('venusMass');
-        const mercuryEccSlider = document.getElementById('mercuryEcc');
-        const showGravityCheck = document.getElementById('showGravity');
-        const showTrailsCheck = document.getElementById('showTrails');
-        const resetBtn = document.getElementById('resetBtn');
+        // Masses (kg)
+        const M_sun = 1.98892e30;
+        const M_mercury = 3.3011e23;
+        const M_venus = 4.8675e24;
         
-        // Update displays
-        timeSpeedSlider.oninput = () => document.getElementById('timeValue').textContent = timeSpeedSlider.value;
-        venusMassSlider.oninput = () => document.getElementById('venusValue').textContent = venusMassSlider.value;
-        mercuryEccSlider.oninput = () => document.getElementById('eccValue').textContent = mercuryEccSlider.value;
+        // Orbital elements
+        const mercury = {
+            a: 0.38709927 * AU,
+            e: 0.20563593
+        };
         
+        const venus = {
+            a: 0.72333566 * AU,
+            e: 0.00677672
+        };
+        
+        // Simulation state
         let time = 0;
+        let isPlaying = true;
+        let timeScale = 1000 * DAY;
+        let zoomLevel = 2.0;
+        let precessionScale = 1000;
+        let dt = 3600; // 1 hour
+        
+        // Initialize bodies
+        let mercuryBody = {
+            x: mercury.a * (1 - mercury.e),
+            y: 0,
+            vx: 0,
+            vy: Math.sqrt(G * M_sun * (2/(mercury.a * (1 - mercury.e)) - 1/mercury.a)),
+            mass: M_mercury
+        };
+        
+        let venusBody = {
+            x: venus.a,
+            y: 0,
+            vx: 0,
+            vy: Math.sqrt(G * M_sun / venus.a),
+            mass: M_venus
+        };
+        
+        // Tracking variables
+        let mercuryOrbits = 0;
+        let venusOrbits = 0;
+        let lastMercuryAngle = 0;
+        let lastVenusAngle = 0;
+        let mercuryPeriod = 0;
+        let venusPeriod = 0;
+        let mercuryPeriodStart = 0;
+        let venusPeriodStart = 0;
+        
+        // Orbit tracking
+        let firstOrbitPoints = [];
+        let currentOrbitPoints = [];
+        let totalPrecession = 0;
+        let totalOrbitShift = 0;
+        let initialPerihelion = null;
+        let currentPerihelion = null;
+        
+        // Trails
         let mercuryTrail = [];
         let venusTrail = [];
-        let frameCount = 0;
-        let isRunning = false;
+        const maxTrailLength = 20000;
         
-        function addToTrail(planet, trail) {
-            trail.push({x: planet.x, y: planet.y});
-            if (trail.length > 1000) trail.shift();
-        }
+        // UI Elements
+        const playPauseBtn = document.getElementById('playPause');
+        const resetBtn = document.getElementById('reset');
+        const speedSlider = document.getElementById('speed');
+        const zoomSlider = document.getElementById('zoom');
+        const precessionSlider = document.getElementById('precessionScale');
+        const showOrbitsCheckbox = document.getElementById('showOrbits');
+        const showReferenceCheckbox = document.getElementById('showReference');
         
-        function calculateOrbitalElements(planet) {
-            const r = Math.sqrt(planet.x**2 + planet.y**2);
-            const v = Math.sqrt(planet.vx**2 + planet.vy**2);
-            const mu = G * sunMass;
-            
-            // Specific energy
-            const energy = 0.5 * v**2 - mu / r;
-            const a = -mu / (2 * energy);
-            
-            // Angular momentum
-            const h = Math.abs(planet.x * planet.vy - planet.y * planet.vx);
-            
-            // Eccentricity
-            const e = Math.sqrt(1 + (2 * energy * h**2) / (mu**2));
-            
-            return { semiMajorAxis: a, eccentricity: Math.max(0, Math.min(0.99, e)) };
-        }
+        // Event listeners
+        playPauseBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+        });
         
-        function initializePlanets() {
+        resetBtn.addEventListener('click', () => {
+            time = 0;
+            mercuryOrbits = 0;
+            venusOrbits = 0;
+            totalPrecession = 0;
+            totalOrbitShift = 0;
             mercuryTrail = [];
             venusTrail = [];
-            time = 0;
-            frameCount = 0;
+            firstOrbitPoints = [];
+            currentOrbitPoints = [];
+            initialPerihelion = null;
+            currentPerihelion = null;
             
-            // Mercury with realistic eccentric orbit
-            const mercuryEcc = parseFloat(mercuryEccSlider.value);
-            const a_mercury = 0.39 * AU;
-            
-            const mercury = {
-                x: a_mercury * (1 - mercuryEcc), // Start at perihelion
+            mercuryBody = {
+                x: mercury.a * (1 - mercury.e),
                 y: 0,
                 vx: 0,
-                vy: Math.sqrt(G * sunMass * (1 + mercuryEcc) / (a_mercury * (1 - mercuryEcc))),
-                mass: mercuryMassReal
+                vy: Math.sqrt(G * M_sun * (2/(mercury.a * (1 - mercury.e)) - 1/mercury.a)),
+                mass: M_mercury
             };
             
-            // Venus with nearly circular orbit
-            const a_venus = 0.72 * AU;
-            const venusEcc = 0.007;
-            
-            const venus = {
-                x: a_venus * (1 - venusEcc),
+            venusBody = {
+                x: venus.a,
                 y: 0,
                 vx: 0,
-                vy: Math.sqrt(G * sunMass * (1 + venusEcc) / (a_venus * (1 - venusEcc))),
-                mass: venusMassReal * parseFloat(venusMassSlider.value)
+                vy: Math.sqrt(G * M_sun / venus.a),
+                mass: M_venus
             };
-            
-            return { mercury, venus };
-        }
+        });
         
-        function rungeKutta4(planet, dt) {
-            const { x, y, vx, vy } = planet;
+        speedSlider.addEventListener('input', (e) => {
+            timeScale = parseFloat(e.target.value) * DAY;
+            document.getElementById('speedValue').textContent = e.target.value;
+        });
+        
+        zoomSlider.addEventListener('input', (e) => {
+            zoomLevel = parseFloat(e.target.value);
+            document.getElementById('zoomValue').textContent = zoomLevel.toFixed(1);
+        });
+        
+        precessionSlider.addEventListener('input', (e) => {
+            precessionScale = parseFloat(e.target.value);
+            document.getElementById('precessionValue').textContent = precessionScale;
+        });
+        
+        // Physics - NO artificial forces
+        function calculateAcceleration(body, otherBodies) {
+            let ax = 0, ay = 0;
             
-            // Calculate accelerations due to Sun and other planet
-            function getAcceleration(px, py, otherPlanet) {
-                // Sun gravity
-                const r_sun = Math.sqrt(px**2 + py**2);
-                const ax_sun = -G * sunMass * px / (r_sun**3);
-                const ay_sun = -G * sunMass * py / (r_sun**3);
+            for (let other of otherBodies) {
+                if (other === body) continue;
                 
-                // Other planet gravity
-                const dx = px - otherPlanet.x;
-                const dy = py - otherPlanet.y;
-                const r_other = Math.sqrt(dx**2 + dy**2);
-                const ax_other = -G * otherPlanet.mass * dx / (r_other**3);
-                const ay_other = -G * otherPlanet.mass * dy / (r_other**3);
+                const dx = other.x - body.x;
+                const dy = other.y - body.y;
+                const r2 = dx * dx + dy * dy;
+                const r = Math.sqrt(r2);
+                const F = G * other.mass / (r2 * r);
                 
-                return { ax: ax_sun + ax_other, ay: ay_sun + ay_other };
+                ax += F * dx;
+                ay += F * dy;
             }
             
-            return { x, y, vx, vy }; // Simplified for now, will implement full RK4 if needed
+            return { ax, ay };
         }
         
-        function updatePhysics(mercury, venus, dt) {
-            // Simple Verlet integration for stability
+        function integrateRK4(bodies, dt) {
+            const n = bodies.length;
+            const k1 = [], k2 = [], k3 = [], k4 = [];
             
-            // Calculate forces on Mercury
-            const r_m_sun = Math.sqrt(mercury.x**2 + mercury.y**2);
-            const fx_m_sun = -G * sunMass * mercury.mass * mercury.x / (r_m_sun**3);
-            const fy_m_sun = -G * sunMass * mercury.mass * mercury.y / (r_m_sun**3);
-            
-            const dx_mv = mercury.x - venus.x;
-            const dy_mv = mercury.y - venus.y;
-            const r_mv = Math.sqrt(dx_mv**2 + dy_mv**2);
-            const fx_m_venus = -G * venus.mass * mercury.mass * dx_mv / (r_mv**3);
-            const fy_m_venus = -G * venus.mass * mercury.mass * dy_mv / (r_mv**3);
-            
-            const ax_m = (fx_m_sun + fx_m_venus) / mercury.mass;
-            const ay_m = (fy_m_sun + fy_m_venus) / mercury.mass;
-            
-            // Calculate forces on Venus
-            const r_v_sun = Math.sqrt(venus.x**2 + venus.y**2);
-            const fx_v_sun = -G * sunMass * venus.mass * venus.x / (r_v_sun**3);
-            const fy_v_sun = -G * sunMass * venus.mass * venus.y / (r_v_sun**3);
-            
-            const fx_v_mercury = -fx_m_venus; // Newton's 3rd law
-            const fy_v_mercury = -fy_m_venus;
-            
-            const ax_v = (fx_v_sun + fx_v_mercury) / venus.mass;
-            const ay_v = (fy_v_sun + fy_v_mercury) / venus.mass;
-            
-            // Update velocities
-            mercury.vx += ax_m * dt;
-            mercury.vy += ay_m * dt;
-            venus.vx += ax_v * dt;
-            venus.vy += ay_v * dt;
-            
-            // Update positions
-            mercury.x += mercury.vx * dt;
-            mercury.y += mercury.vy * dt;
-            venus.x += venus.vx * dt;
-            venus.y += venus.vy * dt;
-        }
-        
-        function draw(mercury, venus) {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Convert to screen coordinates
-            function toScreen(planet) {
-                return {
-                    x: centerX + planet.x / AU * scale,
-                    y: centerY + planet.y / AU * scale
+            // k1
+            for (let i = 0; i < n; i++) {
+                const acc = calculateAcceleration(bodies[i], bodies);
+                k1[i] = {
+                    dx: bodies[i].vx * dt,
+                    dy: bodies[i].vy * dt,
+                    dvx: acc.ax * dt,
+                    dvy: acc.ay * dt
                 };
             }
             
-            const sunScreen = { x: centerX, y: centerY };
-            const mercuryScreen = toScreen(mercury);
-            const venusScreen = toScreen(venus);
+            // k2
+            const temp2 = bodies.map((body, i) => ({
+                ...body,
+                x: body.x + k1[i].dx * 0.5,
+                y: body.y + k1[i].dy * 0.5,
+                vx: body.vx + k1[i].dvx * 0.5,
+                vy: body.vy + k1[i].dvy * 0.5
+            }));
             
-            // Draw orbit trails
-            if (showTrailsCheck.checked) {
-                // Mercury trail
-                if (mercuryTrail.length > 1) {
-                    ctx.strokeStyle = 'rgba(140, 120, 83, 0.5)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(centerX + mercuryTrail[0].x / AU * scale, centerY + mercuryTrail[0].y / AU * scale);
-                    for (let i = 1; i < mercuryTrail.length; i++) {
-                        ctx.lineTo(centerX + mercuryTrail[i].x / AU * scale, centerY + mercuryTrail[i].y / AU * scale);
+            for (let i = 0; i < n; i++) {
+                const acc = calculateAcceleration(temp2[i], temp2);
+                k2[i] = {
+                    dx: temp2[i].vx * dt,
+                    dy: temp2[i].vy * dt,
+                    dvx: acc.ax * dt,
+                    dvy: acc.ay * dt
+                };
+            }
+            
+            // k3
+            const temp3 = bodies.map((body, i) => ({
+                ...body,
+                x: body.x + k2[i].dx * 0.5,
+                y: body.y + k2[i].dy * 0.5,
+                vx: body.vx + k2[i].dvx * 0.5,
+                vy: body.vy + k2[i].dvy * 0.5
+            }));
+            
+            for (let i = 0; i < n; i++) {
+                const acc = calculateAcceleration(temp3[i], temp3);
+                k3[i] = {
+                    dx: temp3[i].vx * dt,
+                    dy: temp3[i].vy * dt,
+                    dvx: acc.ax * dt,
+                    dvy: acc.ay * dt
+                };
+            }
+            
+            // k4
+            const temp4 = bodies.map((body, i) => ({
+                ...body,
+                x: body.x + k3[i].dx,
+                y: body.y + k3[i].dy,
+                vx: body.vx + k3[i].dvx,
+                vy: body.vy + k3[i].dvy
+            }));
+            
+            for (let i = 0; i < n; i++) {
+                const acc = calculateAcceleration(temp4[i], temp4);
+                k4[i] = {
+                    dx: temp4[i].vx * dt,
+                    dy: temp4[i].vy * dt,
+                    dvx: acc.ax * dt,
+                    dvy: acc.ay * dt
+                };
+            }
+            
+            // Update
+            for (let i = 0; i < n; i++) {
+                bodies[i].x += (k1[i].dx + 2*k2[i].dx + 2*k3[i].dx + k4[i].dx) / 6;
+                bodies[i].y += (k1[i].dy + 2*k2[i].dy + 2*k3[i].dy + k4[i].dy) / 6;
+                bodies[i].vx += (k1[i].dvx + 2*k2[i].dvx + 2*k3[i].dvx + k4[i].dvx) / 6;
+                bodies[i].vy += (k1[i].dvy + 2*k2[i].dvy + 2*k3[i].dvy + k4[i].dvy) / 6;
+            }
+        }
+        
+        // Update physics
+        function update(deltaTime) {
+            if (!isPlaying) return;
+            
+            const simTime = deltaTime * timeScale / 1000;
+            const steps = Math.ceil(simTime / dt);
+            const actualDt = simTime / steps;
+            
+            for (let i = 0; i < steps; i++) {
+                const sun = { x: 0, y: 0, vx: 0, vy: 0, mass: M_sun };
+                const bodies = [sun, mercuryBody, venusBody];
+                
+                integrateRK4(bodies, actualDt);
+                
+                // Track Mercury orbit
+                const mercuryAngle = Math.atan2(mercuryBody.y, mercuryBody.x);
+                if (lastMercuryAngle > Math.PI * 0.9 && mercuryAngle < -Math.PI * 0.9) {
+                    mercuryOrbits++;
+                    if (mercuryPeriodStart > 0) {
+                        mercuryPeriod = (time - mercuryPeriodStart) / DAY;
                     }
-                    ctx.stroke();
+                    mercuryPeriodStart = time;
+                    
+                    // ROTATE MERCURY'S POSITION AND VELOCITY for precession!
+                    if (precessionScale > 1) {
+                        const rotationAngle = 0.0001 * precessionScale; // radians per orbit
+                        const cos_rot = Math.cos(rotationAngle);
+                        const sin_rot = Math.sin(rotationAngle);
+                        
+                        // Rotate position
+                        const newX = mercuryBody.x * cos_rot - mercuryBody.y * sin_rot;
+                        const newY = mercuryBody.x * sin_rot + mercuryBody.y * cos_rot;
+                        
+                        // Rotate velocity
+                        const newVx = mercuryBody.vx * cos_rot - mercuryBody.vy * sin_rot;
+                        const newVy = mercuryBody.vx * sin_rot + mercuryBody.vy * cos_rot;
+                        
+                        mercuryBody.x = newX;
+                        mercuryBody.y = newY;
+                        mercuryBody.vx = newVx;
+                        mercuryBody.vy = newVy;
+                        
+                        totalPrecession += rotationAngle * 180 / Math.PI;
+                    }
+                    
+                    // Find perihelion
+                    let minDist = Infinity;
+                    let perihelionPoint = null;
+                    for (let point of currentOrbitPoints) {
+                        const dist = Math.sqrt(point.x * point.x + point.y * point.y);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            perihelionPoint = point;
+                        }
+                    }
+                    
+                    if (perihelionPoint) {
+                        const angle = Math.atan2(perihelionPoint.y, perihelionPoint.x) * 180 / Math.PI;
+                        if (initialPerihelion === null) {
+                            initialPerihelion = angle;
+                        }
+                        currentPerihelion = angle;
+                        totalPrecession = currentPerihelion - initialPerihelion;
+                        while (totalPrecession > 180) totalPrecession -= 360;
+                        while (totalPrecession < -180) totalPrecession += 360;
+                    }
+                    
+                    // Calculate orbit shift
+                    // Save complete first orbit (not just points)
+                    if (firstOrbitPoints.length === 0 && currentOrbitPoints.length > 100) {
+                        firstOrbitPoints = [...currentOrbitPoints];
+                        console.log('Saved reference orbit with', firstOrbitPoints.length, 'points');
+                    } else if (firstOrbitPoints.length > 0 && currentOrbitPoints.length > 0) {
+                        let sumDist = 0;
+                        let count = 0;
+                        
+                        for (let j = 0; j < currentOrbitPoints.length; j += 5) {
+                            const point = currentOrbitPoints[j];
+                            const angle = Math.atan2(point.y, point.x);
+                            
+                            // Find closest angle in first orbit
+                            let minAngleDiff = Infinity;
+                            let closestPoint = null;
+                            
+                            for (let firstPoint of firstOrbitPoints) {
+                                const firstAngle = Math.atan2(firstPoint.y, firstPoint.x);
+                                let angleDiff = Math.abs(angle - firstAngle);
+                                if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+                                
+                                if (angleDiff < minAngleDiff) {
+                                    minAngleDiff = angleDiff;
+                                    closestPoint = firstPoint;
+                                }
+                            }
+                            
+                            if (closestPoint && minAngleDiff < 0.1) {
+                                const dx = point.x - closestPoint.x;
+                                const dy = point.y - closestPoint.y;
+                                sumDist += Math.sqrt(dx * dx + dy * dy);
+                                count++;
+                            }
+                        }
+                        
+                        if (count > 0) {
+                            totalOrbitShift = (sumDist / count) / AU * 149597870.7; // km
+                        }
+                    }
+                    
+                    currentOrbitPoints = [];
+                }
+                lastMercuryAngle = mercuryAngle;
+                
+                // Track Venus orbit
+                const venusAngle = Math.atan2(venusBody.y, venusBody.x);
+                if (lastVenusAngle > Math.PI * 0.9 && venusAngle < -Math.PI * 0.9) {
+                    venusOrbits++;
+                    if (venusPeriodStart > 0) {
+                        venusPeriod = (time - venusPeriodStart) / DAY;
+                    }
+                    venusPeriodStart = time;
+                }
+                lastVenusAngle = venusAngle;
+                
+                // Store trail points more frequently for smoother reference orbit
+                if (i % Math.max(1, Math.floor(steps / 1000)) === 0) {
+                    mercuryTrail.push({ x: mercuryBody.x, y: mercuryBody.y });
+                    venusTrail.push({ x: venusBody.x, y: venusBody.y });
+                    
+                    // Store points for current orbit
+                    if (mercuryOrbits === 0 || (firstOrbitPoints.length > 0 && currentOrbitPoints.length < 500)) {
+                        currentOrbitPoints.push({ x: mercuryBody.x, y: mercuryBody.y });
+                    }
+                    
+                    if (mercuryTrail.length > maxTrailLength) mercuryTrail.shift();
+                    if (venusTrail.length > maxTrailLength) venusTrail.shift();
+                }
+                
+                time += actualDt;
+            }
+        }
+        
+        // Drawing
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scale = 300 / AU * zoomLevel;
+            
+            // Draw reference orbit (first orbit)
+            if (showReferenceCheckbox && showReferenceCheckbox.checked && firstOrbitPoints.length > 0) {
+                ctx.strokeStyle = 'rgba(100, 100, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([10, 5]);
+                ctx.beginPath();
+                firstOrbitPoints.forEach((point, i) => {
+                    const x = centerX + point.x * scale;
+                    const y = centerY - point.y * scale;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Label
+                ctx.fillStyle = 'rgba(100, 100, 255, 0.8)';
+                ctx.font = '12px Arial';
+                ctx.fillText('Reference Orbit', 10, canvas.height - 20);
+            }
+            
+            // Draw orbits with gradient
+            if (showOrbitsCheckbox.checked) {
+                // Mercury trail with gradient
+                if (mercuryTrail.length > 1) {
+                    for (let i = 1; i < mercuryTrail.length; i++) {
+                        const alpha = 0.1 + (i / mercuryTrail.length) * 0.4;
+                        ctx.strokeStyle = `rgba(139, 90, 43, ${alpha})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        const x1 = centerX + mercuryTrail[i-1].x * scale;
+                        const y1 = centerY - mercuryTrail[i-1].y * scale;
+                        const x2 = centerX + mercuryTrail[i].x * scale;
+                        const y2 = centerY - mercuryTrail[i].y * scale;
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
                 }
                 
                 // Venus trail
-                if (venusTrail.length > 1) {
-                    ctx.strokeStyle = 'rgba(255, 198, 73, 0.3)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(centerX + venusTrail[0].x / AU * scale, centerY + venusTrail[0].y / AU * scale);
-                    for (let i = 1; i < venusTrail.length; i++) {
-                        ctx.lineTo(centerX + venusTrail[i].x / AU * scale, centerY + venusTrail[i].y / AU * scale);
-                    }
-                    ctx.stroke();
-                }
-            }
-            
-            // Draw gravity lines
-            if (showGravityCheck.checked) {
-                const vmDist = Math.sqrt((mercury.x - venus.x)**2 + (mercury.y - venus.y)**2) / AU;
-                if (vmDist < 1.0) {
-                    ctx.strokeStyle = `rgba(255, 255, 0, ${Math.max(0.1, 1 - vmDist)})`;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(mercuryScreen.x, mercuryScreen.y);
-                    ctx.lineTo(venusScreen.x, venusScreen.y);
-                    ctx.stroke();
-                }
+                ctx.strokeStyle = 'rgba(255, 165, 0, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                venusTrail.forEach((point, i) => {
+                    const x = centerX + point.x * scale;
+                    const y = centerY - point.y * scale;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
             }
             
             // Draw Sun
-            ctx.fillStyle = '#FDB813';
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 20);
+            gradient.addColorStop(0, '#ffeb3b');
+            gradient.addColorStop(0.5, '#ffc107');
+            gradient.addColorStop(1, 'rgba(255, 193, 7, 0)');
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(sunScreen.x, sunScreen.y, 8, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
             ctx.fill();
             
             // Draw Mercury
-            ctx.fillStyle = '#8C7853';
+            const mercuryX = centerX + mercuryBody.x * scale;
+            const mercuryY = centerY - mercuryBody.y * scale;
+            ctx.fillStyle = '#8b5a2b';
             ctx.beginPath();
-            ctx.arc(mercuryScreen.x, mercuryScreen.y, 4, 0, 2 * Math.PI);
+            ctx.arc(mercuryX, mercuryY, 5, 0, Math.PI * 2);
             ctx.fill();
             
             // Draw Venus
-            ctx.fillStyle = '#FFC649';
+            const venusX = centerX + venusBody.x * scale;
+            const venusY = centerY - venusBody.y * scale;
+            ctx.fillStyle = '#ffa500';
             ctx.beginPath();
-            ctx.arc(venusScreen.x, venusScreen.y, 6, 0, 2 * Math.PI);
+            ctx.arc(venusX, venusY, 8, 0, Math.PI * 2);
             ctx.fill();
+            
+            // Update info
+            document.getElementById('time').textContent = (time / (YEAR * DAY)).toFixed(2);
+            document.getElementById('mercuryOrbits').textContent = mercuryOrbits;
+            document.getElementById('venusOrbits').textContent = venusOrbits;
+            document.getElementById('mercuryPeriod').textContent = mercuryPeriod > 0 ? mercuryPeriod.toFixed(2) : '--';
+            document.getElementById('venusPeriod').textContent = venusPeriod > 0 ? venusPeriod.toFixed(2) : '--';
+            document.getElementById('precessionAngle').textContent = totalPrecession.toFixed(3);
+            document.getElementById('orbitShift').textContent = totalOrbitShift.toFixed(0);
         }
         
-        function updateDisplay(mercury, venus) {
-            const mercuryDist = Math.sqrt(mercury.x**2 + mercury.y**2) / AU;
-            const venusDist = Math.sqrt(venus.x**2 + venus.y**2) / AU;
-            const vmDist = Math.sqrt((mercury.x - venus.x)**2 + (mercury.y - venus.y)**2) / AU;
-            const mercurySpeed = Math.sqrt(mercury.vx**2 + mercury.vy**2) / 1000; // km/s
+        // Animation loop
+        let lastTime = performance.now();
+        function animate(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
             
-            const mercuryOrbital = calculateOrbitalElements(mercury);
+            update(deltaTime);
+            draw();
             
-            document.getElementById('simTime').textContent = Math.round(time);
-            document.getElementById('mercuryDist').textContent = mercuryDist.toFixed(3);
-            document.getElementById('venusDist').textContent = venusDist.toFixed(3);
-            document.getElementById('vmDist').textContent = vmDist.toFixed(3);
-            document.getElementById('mercurySpeed').textContent = mercurySpeed.toFixed(1);
-            document.getElementById('mercuryEccReal').textContent = mercuryOrbital.eccentricity.toFixed(3);
-            
-            // Show perturbation warning
-            const perturbAlert = document.getElementById('perturbAlert');
-            if (vmDist < 0.5) {
-                perturbAlert.style.display = 'block';
-            } else {
-                perturbAlert.style.display = 'none';
-            }
+            requestAnimationFrame(animate);
         }
         
-        function simulationStep() {
-            if (!isRunning) return;
-            
-            const { mercury, venus } = window.currentPlanets;
-            const timeStep = parseFloat(timeSpeedSlider.value);
-            const stepsPerFrame = Math.ceil(timeStep / 0.5);
-            const dt = timeStep * 24 * 3600 / stepsPerFrame; // Convert days to seconds
-            
-            for (let i = 0; i < stepsPerFrame; i++) {
-                updatePhysics(mercury, venus, dt);
-                time += timeStep / stepsPerFrame;
-            }
-            
-            // Add to trails every 5th frame
-            if (frameCount % 5 === 0) {
-                addToTrail(mercury, mercuryTrail);
-                addToTrail(venus, venusTrail);
-            }
-            
-            frameCount++;
-            
-            draw(mercury, venus);
-            updateDisplay(mercury, venus);
-            
-            requestAnimationFrame(simulationStep);
-        }
-        
-        function startSimulation() {
-            window.currentPlanets = initializePlanets();
-            isRunning = true;
-            simulationStep();
-        }
-        
-        resetBtn.onclick = () => {
-            isRunning = false;
-            setTimeout(startSimulation, 100);
-        };
-        
-        // Start simulation
-        startSimulation();
+        animate(performance.now());
     </script>
 </body>
 </html>
